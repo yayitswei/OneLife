@@ -11270,6 +11270,17 @@ int processLoggedInPlayer( int inAllowOrForceReconnect,
             newObject.lifeStartTimeSeconds = 
                 Time::getCurrentTime() - forceAge * ( 1.0 / getAgeRate() );
             }
+
+        // DEBUG (see DEBUG_REVERT_LIST.md): pin Eve to (0,0) so the WASM and
+        // native clients render the exact same spawn for pixel-diff
+        // comparison. Without this, every spawn is at a random biome with
+        // random objects, defeating the verification.
+        if( SettingsManager::getIntSetting( "debugForceFixedPos", 0 ) ) {
+            newObject.xs = 0;
+            newObject.ys = 0;
+            newObject.xd = 0;
+            newObject.yd = 0;
+            }
         }
 
 
@@ -29779,7 +29790,13 @@ int main( int inNumArgs, const char **inArgs ) {
                 // check if we need to decrement their food
                 double curTime = Time::getCurrentTime();
                 
-                if( ! nextPlayer->vogMode &&
+                // DEBUG: settings/debugNoHunger.ini=1 disables starvation so the
+                // browser-port test player stays alive. See DEBUG_REVERT_LIST.md.
+                static int debugNoHunger =
+                    SettingsManager::getIntSetting( "debugNoHunger", 0 );
+
+                if( ! debugNoHunger &&
+                    ! nextPlayer->vogMode &&
                     curTime > 
                     nextPlayer->foodDecrementETASeconds ) {
                     

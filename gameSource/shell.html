@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OneLife (Web)</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #000; color: #ccc;
+               font: 14px/1.4 system-ui, sans-serif;
+               height: 100%; overflow: hidden; }
+  #wrap   { position: fixed; inset: 0; display: flex; align-items: center;
+            justify-content: center; }
+  canvas  { background: #000; display: block; image-rendering: pixelated;
+            /* sized by JS to fit viewport while preserving aspect ratio */ }
+  #status { position: fixed; top: 8px; left: 8px; padding: 4px 8px;
+            background: rgba(0,0,0,.6); border-radius: 4px; z-index: 10;
+            pointer-events: none; }
+  #status.hidden { display: none; }
+  #log    { position: fixed; bottom: 0; left: 0; right: 0; max-height: 14em;
+            overflow: auto; padding: 4px 8px; background: rgba(0,0,0,.65);
+            font: 11px/1.2 ui-monospace, monospace; white-space: pre-wrap;
+            z-index: 10; display: none; }
+  #log.visible { display: block; }
+  #toggle { position: fixed; bottom: 4px; right: 8px; z-index: 11;
+            padding: 4px 8px; background: rgba(60,60,60,.8); color: #ccc;
+            border: 1px solid #555; cursor: pointer; font-size: 11px; }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas></div>
+<div id="status">Loading...</div>
+<button id="toggle" onclick="document.getElementById('log').classList.toggle('visible')">log</button>
+<pre id="log"></pre>
+
+<script>
+  // Match logical screen size from settings/screenWidth + screenHeight.
+  const GAME_W = 1280, GAME_H = 720;
+
+  const canvas = document.getElementById("canvas");
+  const status = document.getElementById("status");
+  const logEl  = document.getElementById("log");
+
+  function fit() {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const s = Math.min(vw / GAME_W, vh / GAME_H);
+    canvas.style.width  = (GAME_W * s) + "px";
+    canvas.style.height = (GAME_H * s) + "px";
+  }
+  window.addEventListener("resize", fit);
+  fit();
+
+  // Make canvas the actual drawing surface at native size; CSS scales it.
+  canvas.width  = GAME_W;
+  canvas.height = GAME_H;
+
+  function tail(line) {
+    logEl.textContent += line + "\n";
+    if (logEl.textContent.length > 8000)
+      logEl.textContent = logEl.textContent.slice(-7000);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // Per-browser player identity. The asset bundle ships a single shared
+  // account (settings/email.ini = test@local); without this, every browser
+  // logs in as the same player and the server force-disconnects the older
+  // connection ("Authentic reconnect received"). We overwrite email.ini in
+  // MEMFS from onRuntimeInitialized, which (per doRun) fires AFTER the
+  // preloaded settings/ dir is unpacked and BEFORE main() reads the email
+  // (game.cpp:657). accountKey.ini's bundled 40-char placeholder is left
+  // as-is (must stay non-null or autoLogIn is forced off, game.cpp:2013;
+  // its value is irrelevant since server-side auth is disabled).
+  //   Default: stable identity per browser profile (a second tab reconnects
+  //   as the SAME player). Override with ?newplayer=1 to force a fresh
+  //   character every load (testing/debugging multiple players at once).
+  function chooseEmail() {
+    const rand = () => "player-" + Math.random().toString(36).slice(2, 10) + "@local";
+    if (new URLSearchParams(location.search).has("newplayer")) {
+      return rand();                       // fresh character every load
+    }
+    let email = localStorage.getItem("oholEmail");
+    if (!email) { email = rand(); localStorage.setItem("oholEmail", email); }
+    return email;                          // stable per browser profile
+  }
+
+  var Module = {
+    canvas: canvas,
+    onRuntimeInitialized: () => {
+      const writeSetting = (name, value) => {
+        try { Module.FS_unlink("settings/" + name); } catch (e) {}
+        Module.FS_createDataFile("settings", name, value, true, true);
+      };
+      const email = chooseEmail();
+      writeSetting("email.ini", email);
+      console.log("[ohol] account identity: " + email);
+      // Connect to whatever host served this page, not the bundled 127.0.0.1.
+      // So the same build works when YOU load it via localhost and when a
+      // friend loads it via your LAN IP (e.g. http://192.168.x.y:8765/...).
+      // The WS bridge port stays as bundled (customServerPort.ini = 9001).
+      const host = location.hostname || "127.0.0.1";
+      writeSetting("customServerAddress.ini", host);
+      console.log("[ohol] server address: " + host + " (from page host)");
+    },
+    print:    (t) => { console.log(t); tail(t); },
+    printErr: (t) => { console.warn(t); tail("[err] " + t); },
+    setStatus: (t) => {
+      if (!t) { status.classList.add("hidden"); return; }
+      status.classList.remove("hidden");
+      status.textContent = t;
+    },
+    totalDependencies: 0,
+    monitorRunDependencies: (left) => {
+      Module.totalDependencies = Math.max(Module.totalDependencies, left);
+      Module.setStatus(left
+        ? "Loading assets... " + (Module.totalDependencies - left) + "/" + Module.totalDependencies
+        : "All assets loaded.");
+    },
+  };
+  Module.setStatus("Downloading...");
+  window.onerror = (e) => { Module.setStatus("Exception thrown, see console"); };
+
+  // Service Worker — caches the ~80MB of static assets so warm loads are
+  // instant. Registered after page-fetch is already in flight (no impact on
+  // cold load). See sw.js for caching policy + versioning.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () =>
+      navigator.serviceWorker.register("sw.js").catch((e) =>
+        console.warn("[ohol] sw register failed:", e)));
+  }
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>

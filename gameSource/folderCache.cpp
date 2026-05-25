@@ -137,6 +137,15 @@ FolderCache initFolderCache( const char *inFolderName,
 
 
     if( cacheGood ) {
+#ifdef __EMSCRIPTEN__
+        // The wasm asset bundle ships only cache.fcz per dir (raw .txt files
+        // are stripped to cut OneLifeApp.data from ~200MB to ~76MB). With raw
+        // files absent the staleness check below would always flag the cache
+        // as stale ("extra files not in folder") and try to rebuild from
+        // sources that don't exist. Trust the cache outright on emscripten.
+        printf( "Skipping cache staleness check for %s (emscripten build)\n",
+                inFolderName );
+#else
         // make sure cache matches existing folder contents
 
         printf( "Checking that cache contains all of %s folder's "
@@ -235,6 +244,7 @@ FolderCache initFolderCache( const char *inFolderName,
             
             cacheGood = false;
             }
+#endif // __EMSCRIPTEN__
         }
     
     

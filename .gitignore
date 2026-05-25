@@ -28,3 +28,61 @@ server/lifeLog/
 server/categories
 server/objects
 server/transitions
+
+# === OHOL web port (fork additions) ===
+
+# Emscripten / native build outputs
+gameSource/OneLifeApp.*
+gameSource/sw.js
+gameSource/OneLifeNative
+gameSource/regenerateCaches
+*.dSYM/
+
+# Generated caches
+gameSource/groundTileCache/
+gameSource/reverbCache/
+
+# Data-dir symlinks into ../OneLifeData7 (recreated by setup; never committed)
+gameSource/animations
+gameSource/categories
+gameSource/contentSettings
+gameSource/ground
+gameSource/music
+gameSource/objects
+gameSource/sounds
+gameSource/sprites
+gameSource/transitions
+server/animations
+server/contentSettings
+server/ground
+server/music
+server/sounds
+server/sprites
+
+# Generated version / state files & logs
+gameSource/dataVersionNumber.txt
+gameSource/gameLog.txt
+server/dataVersionNumber.txt
+server/biomeRandSeed.txt
+server/clientTagLog.txt
+server/eveRadius.txt
+server/lastEveLocation.txt
+server/evePlacementLog.txt
+server/evePlacementHomelandLog.txt
+server/familyDataLog.txt
+server/curseLog/
+server/foodLogDetail/
+server/mapChangeLogs/
+
+# Runtime-generated / per-machine settings (managed by set-mode.sh or the runtime)
+gameSource/settings/accountKey.ini
+gameSource/settings/countingOnVsync.ini
+gameSource/settings/email.ini
+gameSource/settings/loginSuccess.ini
+gameSource/settings/requireClientPassword.ini
+gameSource/settings/targetFrameRate.ini
+server/settings/arcStartTime.ini
+server/settings/debugForceFixedPos.ini
+server/settings/debugNoHunger.ini
+server/settings/nextPlayerID.ini
+server/settings/sequenceNumber.ini
