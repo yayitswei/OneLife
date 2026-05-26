@@ -81,8 +81,22 @@
     return email;                          // stable per browser profile
   }
 
+  // Emscripten's socket→WebSocket layer (SOCKFS in OneLifeApp.js, ~line 6913):
+  // if Module.websocket.url is a FULL URL it replaces the per-socket address
+  // entirely; if it's just "ws://" or "wss://" it's only a scheme prefix.
+  // OneLife opens a single socket so one override is enough.
+  //
+  // Phase B (HTTPS, public deploy): wss:// to /ws on the same host. Caddy
+  //   terminates TLS on 443 and reverse-proxies /ws to ws_bridge.py on
+  //   127.0.0.1:9001. Browsers block plain ws:// from https:// pages anyway.
+  // Phase A (HTTP local/LAN dev):    no override → Emscripten builds
+  //   ws://<customServerAddress>:<customServerPort>/ from the .ini settings
+  //   (set below + bundled 9001). Same behavior as before.
+  const isSecure = location.protocol === "https:";
+
   var Module = {
     canvas: canvas,
+    websocket: isSecure ? { url: "wss://" + location.host + "/ws" } : undefined,
     onRuntimeInitialized: () => {
       const writeSetting = (name, value) => {
         try { Module.FS_unlink("settings/" + name); } catch (e) {}
@@ -93,11 +107,16 @@
       console.log("[ohol] account identity: " + email);
       // Connect to whatever host served this page, not the bundled 127.0.0.1.
       // So the same build works when YOU load it via localhost and when a
-      // friend loads it via your LAN IP (e.g. http://192.168.x.y:8765/...).
-      // The WS bridge port stays as bundled (customServerPort.ini = 9001).
+      // friend loads it via your LAN IP (e.g. http://192.168.x.y:8765/...)
+      // or a deployed domain (https://daisychain.life/). For Phase B the
+      // address/port .ini values are ignored once Module.websocket.url above
+      // takes effect, but we set them for logging/parity.
       const host = location.hostname || "127.0.0.1";
       writeSetting("customServerAddress.ini", host);
-      console.log("[ohol] server address: " + host + " (from page host)");
+      writeSetting("customServerPort.ini", isSecure ? "443" : "9001");
+      console.log("[ohol] server " +
+        (isSecure ? "wss://" + location.host + "/ws (Caddy → ws_bridge)"
+                  : "ws://" + host + ":9001 (direct to ws_bridge)"));
     },
     print:    (t) => { console.log(t); tail(t); },
     printErr: (t) => { console.warn(t); tail("[err] " + t); },
