@@ -55,31 +55,44 @@ void triggerLifeTokenUpdate() {
         secondsLeftBaseTime = -1;
         
         char *emailEncoded = URLUtils::urlEncode( userEmail );
-        
+
         char *serverURL;
-        
+
+        // Empty defaults instead of the upstream "http://onehouronelife.com/..."
+        // baked into the binary. Our port disables the life-token aux service
+        // (it's a paid-play / AHAP feature we're not running), so we never
+        // want to leak the player's email out to a third-party host.
+        // Settings files (lifeTokenServerURL.ini) ship empty in the bundle,
+        // but a wasm fresh from upstream would otherwise reach for that URL
+        // when getStringSetting returns NULL on an empty/missing file.
         if( isAHAP ) {
-            serverURL = SettingsManager::getStringSetting( 
-                "ahapLifeTokenServerURL",
-                "http://onehouronelife.com/lifeTokenServer/server.php" );
+            serverURL = SettingsManager::getStringSetting(
+                "ahapLifeTokenServerURL", "" );
             }
         else {
-            serverURL = SettingsManager::getStringSetting( 
-                "lifeTokenServerURL",
-                "http://onehouronelife.com/lifeTokenServer/server.php" );
+            serverURL = SettingsManager::getStringSetting(
+                "lifeTokenServerURL", "" );
             }
 
-        
-        char *url = autoSprintf( 
+        if( serverURL[0] == '\0' ) {
+            // Aux service disabled — skip the request entirely. Token counts
+            // stay -1, the UI hides them (the existing -1 path is well-trodden
+            // because connection failures used to leave it -1 as well).
+            delete [] serverURL;
+            delete [] emailEncoded;
+            return;
+            }
+
+        char *url = autoSprintf(
             "%s?action=get_token_count&email=%s",
             serverURL, emailEncoded );
-        
+
         delete [] serverURL;
         delete [] emailEncoded;
 
         webRequest = startWebRequest( "GET", url, NULL );
         triggerTime = game_getCurrentTime();
-        
+
         delete [] url;
         }
     }
