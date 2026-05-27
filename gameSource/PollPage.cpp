@@ -159,7 +159,13 @@ void PollPage::makeActive( char inFresh ) {
         }
     
     if( strcmp( userEmail, "" ) == 0 ||
-        strcmp( accountKey, "" ) == 0 ) {
+        strcmp( accountKey, "" ) == 0 ||
+        // Empty review URL: this fork disables the reviewServer aux service.
+        // The original code only short-circuited on empty email/key — without
+        // this guard the page fires a malformed web request (no host), which
+        // never completes under Emscripten's WebRequest path and leaves the
+        // user stuck on a black "loading dots" screen after every death.
+        strcmp( mReviewServerURL, "" ) == 0 ) {
         setSignal( "done" );
         return;
         }

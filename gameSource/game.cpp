@@ -286,7 +286,13 @@ char isNonIntegerScalingAllowed() {
 
 
 const char *getWindowTitle() {
-    return "OneLife";
+    // Browser tab title. SDL_WM_SetCaption is called once at startup and
+    // overwrites whatever shell.html set in <title>, so without this change
+    // the tab briefly flashes "Daisy Chain Life" then becomes "OneLife".
+    // getAppName() below is intentionally left as "OneLife" because it
+    // names the on-disk settings/save directory and changing it would
+    // strand existing per-browser state.
+    return "Daisy Chain Life";
     }
 
 
