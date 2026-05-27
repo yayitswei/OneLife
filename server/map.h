@@ -101,6 +101,13 @@ void setResponsiblePlayer( int inPlayerID );
 
 int getMapObject( int inX, int inY );
 
+
+// running count of genuine base-map (procedural) generations.
+// counts cache misses only -> real generation work. Used by the
+// server main-loop slow-step instrumentation to attribute stalls.
+int getBaseMapGenCount();
+
+
 char isMapSpotBlocking( int inX, int inY );
 
 

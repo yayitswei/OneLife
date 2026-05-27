@@ -1407,6 +1407,14 @@ static void mapCacheInsert( int inX, int inY, int inID,
 static int getBaseMapCallCount = 0;
 
 
+// number of genuine base-map (procedural) generations so far.
+// counts only cache misses (see getBaseMap), i.e. real generation work.
+// used by the server's slow-step instrumentation to attribute stalls.
+int getBaseMapGenCount() {
+    return getBaseMapCallCount;
+    }
+
+
 static int getBaseMap( int inX, int inY, char *outGridPlacement = NULL ) {
     
     if( inX > xLimit || inX < -xLimit ||

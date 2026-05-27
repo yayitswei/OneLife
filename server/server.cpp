@@ -19786,6 +19786,18 @@ int main( int inNumArgs, const char **inArgs ) {
     */
 
 
+    // --- main-loop slow-step instrumentation (settings-gated, default off) ---
+    // When slowStepLogMS > 0, log any cycle whose non-idle work (the span
+    // between leaving one sockPoll.wait and entering the next) exceeds the
+    // threshold, along with how many base-map cells were procedurally
+    // generated during it (the prime suspect for first-access stalls).
+    // The wait at the top of the loop is hit exactly once per cycle (even on
+    // paths that 'continue'), so measuring between waits cleanly excludes
+    // idle time. When disabled the overhead is two int comparisons per cycle.
+    int slowStepLogMS = SettingsManager::getIntSetting( "slowStepLogMS", 0 );
+    double slowStepWorkSpanStart = -1;
+    int slowStepGenStart = 0;
+
     while( !quit ) {
 
         double curStepTime = Time::getCurrentTime();
@@ -20411,12 +20423,32 @@ int main( int inNumArgs, const char **inArgs ) {
         // we thus use zero CPU as long as no messages or new connections
         // come in, and only wake up when some timed action needs to be
         // handled
-        
+
+        // close out the previous cycle's work span just before we go idle
+        if( slowStepLogMS > 0 && slowStepWorkSpanStart > 0 ) {
+            double workMS =
+                ( Time::getCurrentTime() - slowStepWorkSpanStart ) * 1000;
+            if( workMS > slowStepLogMS ) {
+                AppLog::infoF(
+                    "SLOW STEP: %.1f ms work between polls, "
+                    "%d map cells generated, %d live players",
+                    workMS,
+                    getBaseMapGenCount() - slowStepGenStart,
+                    players.size() );
+                }
+            }
+
         readySock = sockPoll.wait( (int)( pollTimeout * 1000 ) );
-        
-        
-        
-        
+
+        // start timing this cycle's work right after we wake (excludes wait)
+        if( slowStepLogMS > 0 ) {
+            slowStepWorkSpanStart = Time::getCurrentTime();
+            slowStepGenStart = getBaseMapGenCount();
+            }
+
+
+
+
         if( readySock != NULL && !readySock->isSocket ) {
             // server ready
             Socket *sock = server->acceptConnection( 0 );
