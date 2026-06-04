@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>daisychain.life</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    background: #15110d; color: #e9e0d2;
+    font-family: ui-serif, Georgia, "Times New Roman", serif;
+    -webkit-font-smoothing: antialiased; padding: 24px;
+  }
+  .card { width: 100%; max-width: 360px; text-align: center; }
+  h1 { margin: 0 0 24px; font-size: 30px; font-weight: 600; letter-spacing: .2px; }
+  .count {
+    font-size: 16px; color: #9a8d79; min-height: 22px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  button {
+    margin-top: 26px; width: 100%; padding: 14px 18px; font-size: 16px;
+    font-family: inherit; font-weight: 600; cursor: pointer;
+    color: #15110d; background: #d8b676; border: 0; border-radius: 9px;
+    transition: background .15s;
+  }
+  button:hover:not(:disabled) { background: #e6c888; }
+  button:disabled { cursor: default; background: #4a3f31; color: #8b8070; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>daisychain.life</h1>
+    <div class="count" id="count"></div>
+    <button id="enter" disabled>Enter</button>
+  </div>
+
+<script>
+(function () {
+  var GAME_URL = "/OneLifeApp.html";
+  var count = document.getElementById("count");
+  var enter = document.getElementById("enter");
+
+  enter.addEventListener("click", function () {
+    if (!enter.disabled) window.location.href = GAME_URL;
+  });
+
+  function poll() {
+    fetch("/status", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (s) {
+        count.textContent = s.count + (s.count === 1 ? " player" : " players");
+        enter.disabled = !!s.full;                 // gate when at capacity
+      })
+      .catch(function () {                          // probe down -> fail open
+        count.textContent = "";
+        enter.disabled = false;
+      });
+  }
+
+  poll();
+  setInterval(poll, 5000);
+})();
+</script>
+</body>
+</html>
